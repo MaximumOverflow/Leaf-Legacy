@@ -42,11 +42,20 @@ namespace Leaf.Compilation.CompilationUnits
 			{
 				if (par.Index != 0)
 					throw new CompilationException("Parameter 'this' must have an index of 0.", this, decl?.Start.Line ?? impl!.Start.Line);
-				
-				if(par.Type is not ReferenceType refT)
-					throw new CompilationException("Parameter 'this' must be a reference type.", this, decl?.Start.Line ?? impl!.Start.Line);
-				
-				refT.Base.AddMethod(func);
+
+				switch (par.Type)
+				{
+					case ReferenceType refT:
+						refT.Base.AddMethod(func);
+						break;
+					
+					case LightReferenceType lrefT:
+						lrefT.Base.AddMethod(func);
+						break;
+					
+					default: throw new CompilationException("Parameter 'this' must be a mutable reference type.", 
+						this, decl?.Start.Line ?? impl!.Start.Line);
+				}
 			}
 
 			return func;

@@ -26,7 +26,11 @@ namespace Leaf.Compilation.Statements
 
 				if (parent.HasValue)
 				{
-					var argsParent = new Value[values.Length]; argsParent[0] = Value.CreateReference(parent.Value, in ctx);
+					var argsParent = new Value[values.Length]; 
+					
+					argsParent[0] = Value.CreateReference(parent.Value, in ctx,
+						((FunctionType) function.Type).ParamTypes[0] is LightReferenceType);
+					
 					for (var i = 1; i < argsParent.Length; i++) argsParent[i] = args[i - 1];
 					return CompileCall(function, argsParent, in ctx);
 				}

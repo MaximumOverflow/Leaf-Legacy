@@ -108,7 +108,7 @@ namespace Leaf.Compilation.Types
 			Type = ctx.GlobalNamespace.Types["i64"]
 		};
 
-		public bool Equals(Type? other)
+		public virtual bool Equals(Type? other)
 			=> ReferenceEquals(this, other);
 
 		public override bool Equals(object? other)

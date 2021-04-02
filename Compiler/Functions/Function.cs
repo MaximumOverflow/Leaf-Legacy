@@ -28,7 +28,7 @@ namespace Leaf.Compilation.Functions
 		External	= Flags.External,
 	}
 
-	public readonly struct FunctionParameter
+	public struct FunctionParameter
 	{
 		public Type Type { get; init; }
 		public uint Index { get; init; }
@@ -41,7 +41,7 @@ namespace Leaf.Compilation.Functions
 		public FunctionType Type;
 		public readonly string Name;
 		public readonly Fragment Fragment;
-		public readonly FunctionFlags Flags;
+		public FunctionFlags Flags { get; private set; }
 		public readonly IReadOnlyDictionary<AttributeType, Value> Attributes;
 		public readonly IReadOnlyDictionary<string, FunctionParameter> Parameters;
 
@@ -164,11 +164,25 @@ namespace Leaf.Compilation.Functions
 			var parameters = new Dictionary<string, FunctionParameter>(param.Length);
 			foreach (var def in param)
 			{
+				var flags = ValueFlags.LValue;
+				var type = frag.GetType(def.type());
+
+				if (type is ReferenceType refT)
+				{
+					if (def.mut == null)
+						type = refT.AsLightRef();
+					else flags |= ValueFlags.Mutable;
+				}
+				else if (def.mut != null)
+					throw new CompilationException("The 'mut' keyword is only applicable to reference types.", frag, def.Start.Line);
+				else flags |= ValueFlags.Mutable;
+
 				var par = new FunctionParameter
 				{
+					Type = type,
+					Flags = flags,
 					Name = def.Id().GetText(),
 					Index = (uint) parameters.Count,
-					Type = frag.GetType(def.type()),
 				};
 
 				if (!parameters.TryAdd(par.Name, par))
@@ -184,6 +198,9 @@ namespace Leaf.Compilation.Functions
 		public string GetMangledName() => _scope != null
 			? $"function_{Fragment.Namespace.GetMangledName()}_{Name}_{Type.GetMangledName()}"
 			: Name;
+
+		public void SetFlag(FunctionFlags flag) 
+			=> Flags |= flag;
 
 		public static implicit operator Value(Function f) => new Value
 		{

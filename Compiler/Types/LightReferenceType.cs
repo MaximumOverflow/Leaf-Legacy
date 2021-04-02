@@ -6,37 +6,30 @@ using System;
 
 namespace Leaf.Compilation.Types
 {
-	public class ReferenceType : Type
+	public class LightReferenceType : Type
 	{
 		public readonly Type Base;
 		public override AttributeTarget AttributeTargetType => AttributeTarget.PointerType;
 
-		private ReferenceType(string name, Type @base, LLVMTypeRef llvmType, TypeFlags flags = default)
+		private LightReferenceType(string name, Type @base, LLVMTypeRef llvmType, TypeFlags flags = default)
 			: base(name, @base.Namespace, llvmType, flags & ~TypeFlags.Primitive) => Base = @base;
 
 		protected override LLVMTypeRef Compile()
 			=> LlvmTypeRef!.Value;
 
-		public static ReferenceType Create(Type @base)
+		public static LightReferenceType Create(Type @base)
 		{
-			var name = $"ref {@base}";
+			var name = $"lref {@base}";
 
 			if (@base.Namespace!.Types.TryGetValue(name, out var type))
-				return (ReferenceType) type;
-
-			Span<LLVMTypeRef> members = stackalloc LLVMTypeRef[]
-			{
-				LLVMTypeRef.CreatePointer(@base.LlvmType, 0),
-				LLVMTypeRef.CreatePointer(@base.Namespace.Context.AllocatorVTableType.LlvmType, 0),
-			};
+				return (LightReferenceType) type;
 
 			if (type is ReferenceType or LightReferenceType or FunctionType)
 				throw new CompilationException($"Type {@base} cannot be referenced.", null);
 
-			var llvmType = @base.LlvmType.Context.CreateNamedStruct(GetMangledName(@base));
-			llvmType.StructSetBody(members, false);
+			var llvmType = LLVMTypeRef.CreatePointer(@base, 0);
 
-			var refT = new ReferenceType(name, @base, llvmType, @base.Flags);
+			var refT = new LightReferenceType(name, @base, llvmType, @base.Flags);
 			@base.Namespace!.Types.Add(name, refT);
 			return refT;
 		}
@@ -50,11 +43,5 @@ namespace Leaf.Compilation.Types
 
 		public override LLVMValueRef DefaultInitializer 
 			=> throw new InvalidTypeException(this, null);
-
-		public LightReferenceType AsLightRef()
-			=> LightReferenceType.Create(Base);
-
-		public override bool Equals(Type? other)
-			=> base.Equals(other) || other is LightReferenceType lrefT && lrefT.Base.Equals(Base);
 	}
 }

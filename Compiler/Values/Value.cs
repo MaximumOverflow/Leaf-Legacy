@@ -64,6 +64,14 @@ namespace Leaf.Compilation.Values
 				Flags = Flags & ~ValueFlags.Alias,
 				LlvmValue = ctx.Builder.BuildLoad(ctx.Builder.BuildStructGEP(LlvmValue, 0))
 			};
+			
+			if (Type is LightReferenceType lrefT) return new Value
+			{
+				Type = lrefT.Base,
+				Allocator = Allocator,
+				Flags = Flags & ~ValueFlags.Alias,
+				LlvmValue = ctx.Builder.BuildLoad(LlvmValue)
+			};
 
 			if ((Flags & ValueFlags.LValue) == 0)
 				throw new CompilationException("Value is not an LValue.", ctx.CurrentFragment);

@@ -61,7 +61,7 @@ namespace Leaf.Compilation.Values
 						Flags = value.Flags | ValueFlags.Alias,
 					};
 
-				return CreateReference(value, in ctx);
+				return CreateReference(value, in ctx, false);
 			}
 
 			if (v.SizeOf() != null)
@@ -147,9 +147,9 @@ namespace Leaf.Compilation.Values
 							if (!structT.Methods.TryGetValue(id, out var overloads))
 								throw new MemberNotFoundException(id, structT, ctx.CurrentScope);
 							
-							var args = new Value[param.Length + 1];
-							args[0] = CreateReference(parent, in ctx);
-							Array.Copy(param, 0, args, 1, param.Length);
+							var args = new Type[param.Length + 1];
+							args[0] = ReferenceType.Create(parent.Type);
+							for (var i = 1; i < args.Length; i++) args[i] = param[i - 1].Type;
 							return overloads.GetImplementation(args);
 						}
 
@@ -160,7 +160,8 @@ namespace Leaf.Compilation.Values
 							LlvmValue = builder.BuildStructGEP(parent.LlvmValue, member.Index),
 						};
 					}
-					default: throw new NotImplementedException();
+					
+					default: throw new NotImplementedException($"Type {parent.Type.GetType()} is not supported");
 				}
 			}
 			else
@@ -341,26 +342,43 @@ namespace Leaf.Compilation.Values
 			return value;
 		}
 
-		public static Value CreateReference(Value value, in LocalCompilationContext ctx)
+		public static Value CreateReference(Value value, in LocalCompilationContext ctx, bool light)
 		{
 			var builder = ctx.Builder;
-			
-			var type = ReferenceType.Create(value.Type);
-			var reference = new Value
+
+			if (light)
 			{
-				Type = type,
-				Flags = value.Flags,
-				Allocator = value.Allocator,
-				LlvmValue = builder.BuildAlloca(type)
-			};
+				var type = LightReferenceType.Create(value.Type);
+				var reference = new Value
+				{
+					Type = type,
+					Flags = value.Flags,
+					Allocator = default,
+					LlvmValue = builder.BuildAlloca(type)
+				};
+				
+				builder.BuildStore(value.LlvmValue, reference.LlvmValue);
+				return reference;
+			}
+			else
+			{
+				var type = ReferenceType.Create(value.Type);
+				var reference = new Value
+				{
+					Type = type,
+					Flags = value.Flags,
+					Allocator = value.Allocator,
+					LlvmValue = builder.BuildAlloca(type)
+				};
 
-			builder.BuildStore(value.LlvmValue, builder.BuildStructGEP(reference.LlvmValue, 0));
+				builder.BuildStore(value.LlvmValue, builder.BuildStructGEP(reference.LlvmValue, 0));
 			
-			builder.BuildStore(value.Allocator ?? LLVMValueRef.CreateConstPointerNull(
-					LLVMTypeRef.CreatePointer(ctx.GlobalContext.AllocatorVTableType.LlvmType, 0)),
-				builder.BuildStructGEP(reference.LlvmValue, 1));
-
-			return reference;
+				builder.BuildStore(value.Allocator ?? LLVMValueRef.CreateConstPointerNull(
+						LLVMTypeRef.CreatePointer(ctx.GlobalContext.AllocatorVTableType.LlvmType, 0)),
+					builder.BuildStructGEP(reference.LlvmValue, 1));
+				
+				return reference;
+			}
 		}
 	}
 	

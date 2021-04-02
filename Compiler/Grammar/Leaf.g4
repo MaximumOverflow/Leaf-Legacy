@@ -92,7 +92,7 @@ def: attribute_add* (def_type | def_func | def_operator);
 
 
 //#### Functions ####
-parameter_def: Id ':' type;
+parameter_def: Id ':' mut='mut'? type;
 function_decl: '(' (parameter_def (',' parameter_def)*)? ')' '->' type ';';
 function_impl: '(' (parameter_def (',' parameter_def)*)? ')' ('->' type)? function_scope;
 

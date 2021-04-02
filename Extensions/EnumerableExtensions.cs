@@ -20,6 +20,18 @@ namespace Extensions
 			return true;
 		}
 		
+		public static bool SequenceEqual<T, TIn>(this IReadOnlyList<T> list, IReadOnlyList<TIn> comp, Func<T, TIn> select) where TIn : IEquatable<TIn>
+		{
+			if (list.Count != comp.Count)
+				return false;
+
+			for (var i = 0; i < list.Count; i++)
+				if (!select(list[i]).Equals(comp[i]))
+					return false;
+
+			return true;
+		}
+		
 		public static bool SequenceEqual<T, TIn>(this IReadOnlyList<T> list, Span<TIn> comp, Func<TIn, T> select) where T : IEquatable<T>
 		{
 			if (list.Count != comp.Length)
@@ -29,6 +41,18 @@ namespace Extensions
 				if (!list[i].Equals(select(comp[i])))
 					return false;
 
+			return true;
+		}
+		
+		public static bool IncompleteSequenceEqual<T>(this IReadOnlyList<T> list, IReadOnlyList<T> comp) where T : IEquatable<T>
+		{
+			if (comp.Count < list.Count)
+				return false;
+			for (int index = 0; index < list.Count; ++index)
+			{
+				if (!list[index].Equals(comp[index]))
+					return false;
+			}
 			return true;
 		}
 		

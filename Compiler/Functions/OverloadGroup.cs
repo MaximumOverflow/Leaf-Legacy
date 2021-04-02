@@ -5,6 +5,7 @@ using Leaf.Compilation.Exceptions;
 using System.Collections.Generic;
 using Leaf.Compilation.Values;
 using System.Linq;
+using Extensions;
 
 namespace Leaf.Compilation.Functions
 {
@@ -23,8 +24,8 @@ namespace Leaf.Compilation.Functions
 
 		public Function GetImplementation(IReadOnlyList<Type> types)
 		{
-			var func = Functions.Find(f => f.Type.ParamTypes.SequenceEqual(types)
-				|| (f.Flags & FunctionFlags.VarArgs) != 0 && f.Type.ParamTypes.IncompleteSequenceEqual(types));
+			var func = Functions.Find(f => types.SequenceEqual(f.Type.ParamTypes)
+				|| (f.Flags & FunctionFlags.VarArgs) != 0 && Extensions.EnumerableExtensions.IncompleteSequenceEqual(f.Type.ParamTypes, types));
 			
 			if (func == null) 
 				throw new FunctionOverloadNotFoundException(this, types);
@@ -36,8 +37,8 @@ namespace Leaf.Compilation.Functions
 		{
 			var func = Functions.Find(f =>
 			{
-				return Extensions.EnumerableExtensions.SequenceEqual(f.Type.ParamTypes, args, v => v.Type)
-				|| (f.Flags & FunctionFlags.VarArgs) != 0 && Extensions.EnumerableExtensions.IncompleteSequenceEqual(f.Type.ParamTypes, args, v => v.Type);
+				return args.SequenceEqual(f.Type.ParamTypes, v => v.Type)
+				|| (f.Flags & FunctionFlags.VarArgs) != 0 && f.Type.ParamTypes.IncompleteSequenceEqual(args, v => v.Type);
 			});
 			
 			if (func == null) 
