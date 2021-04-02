@@ -1,16 +1,17 @@
 using Type = Leaf.Compilation.Types.Type;
-using Leaf.Compilation.Exceptions;
-using Leaf.Compilation.Grammar;
-using LLVMSharp.Interop;
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text.RegularExpressions;
-using DotNetCoreUtilities.Extensions;
 using Leaf.Compilation.Reflection.Static;
+using DotNetCoreUtilities.Extensions;
+using System.Text.RegularExpressions;
+using System.Collections.Concurrent;
+using Leaf.Compilation.Exceptions;
 using Leaf.Compilation.Statements;
+using System.Collections.Generic;
+using Leaf.Compilation.Grammar;
 using Leaf.Compilation.Types;
+using LLVMSharp.Interop;
+using System.Linq;
+using System;
+using Leaf.Compilation.Functions;
 
 namespace Leaf.Compilation.Values
 {
@@ -148,7 +149,10 @@ namespace Leaf.Compilation.Values
 								throw new MemberNotFoundException(id, structT, ctx.CurrentScope);
 							
 							var args = new Type[param.Length + 1];
-							args[0] = ReferenceType.Create(parent.Type);
+							args[0] = (parent.Flags & ValueFlags.Mutable) != 0
+								? ReferenceType.Create(parent.Type)
+								: LightReferenceType.Create(parent.Type);
+							
 							for (var i = 1; i < args.Length; i++) args[i] = param[i - 1].Type;
 							return overloads.GetImplementation(args);
 						}
@@ -156,7 +160,7 @@ namespace Leaf.Compilation.Values
 						return new Value
 						{
 							Type = member.Type,
-							Flags = ValueFlags.LValue | ValueFlags.Mutable,
+							Flags = ValueFlags.LValue | (parent.Flags & ValueFlags.Mutable),
 							LlvmValue = builder.BuildStructGEP(parent.LlvmValue, member.Index),
 						};
 					}
@@ -172,6 +176,19 @@ namespace Leaf.Compilation.Values
 				{
 					if (scope.Variables.TryGetValue(id, out var variable))
 						return variable;
+					
+					if ((ctx.CurrentFunction.Flags & FunctionFlags.MemberFunc) != 0)
+					{
+						try
+						{
+							var opt = options;
+							opt.Parent = scope.Variables["this"];
+							var val = Get(id, in ctx, out var parent, in opt);
+							parentVal = parent;
+							return val;
+						}
+						catch (MemberNotFoundException) {}
+					}
 
 					if (options.Parameters != null && scope.Namespace.Functions.TryGetValue(id, out var overloads))
 					{

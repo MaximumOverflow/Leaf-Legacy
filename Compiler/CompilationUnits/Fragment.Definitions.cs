@@ -47,10 +47,12 @@ namespace Leaf.Compilation.CompilationUnits
 				{
 					case ReferenceType refT:
 						refT.Base.AddMethod(func);
+						func.MarkAsMemberFunc();
 						break;
 					
 					case LightReferenceType lrefT:
 						lrefT.Base.AddMethod(func);
+						func.MarkAsMemberFunc();
 						break;
 					
 					default: throw new CompilationException("Parameter 'this' must be a mutable reference type.", 

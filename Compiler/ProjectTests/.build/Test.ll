@@ -24,13 +24,11 @@ define void @function_Test_toString_ref_Test.Vec2_void(%struct_Test_Vec2* %0) {
   store %struct_Test_Vec2* %0, %struct_Test_Vec2** %2, align 8
   %3 = load %struct_Test_Vec2*, %struct_Test_Vec2** %2, align 8
   %4 = getelementptr inbounds %struct_Test_Vec2, %struct_Test_Vec2* %3, i32 0, i32 0
-  store i8 44, i8* %4, align 1
   %5 = load %struct_Test_Vec2*, %struct_Test_Vec2** %2, align 8
-  %6 = getelementptr inbounds %struct_Test_Vec2, %struct_Test_Vec2* %5, i32 0, i32 0
+  %6 = getelementptr inbounds %struct_Test_Vec2, %struct_Test_Vec2* %5, i32 0, i32 1
   %7 = load %struct_Test_Vec2*, %struct_Test_Vec2** %2, align 8
-  %8 = getelementptr inbounds %struct_Test_Vec2, %struct_Test_Vec2* %7, i32 0, i32 1
+  %8 = load i8, i8* %4, align 1
   %9 = load i8, i8* %6, align 1
-  %10 = load i8, i8* %8, align 1
-  %11 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([9 x i8], [9 x i8]* @0, i64 0, i64 0), i8 %9, i8 %10)
+  %10 = call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([9 x i8], [9 x i8]* @0, i64 0, i64 0), i8 %8, i8 %9)
   ret void
 }

@@ -26,6 +26,7 @@ namespace Leaf.Compilation.Functions
 		VarArgs		= Flags.VarArgs,
 		CCompat		= Flags.CCompat,
 		External	= Flags.External,
+		MemberFunc	= Flags.MemberFunc,
 	}
 
 	public struct FunctionParameter
@@ -199,8 +200,8 @@ namespace Leaf.Compilation.Functions
 			? $"function_{Fragment.Namespace.GetMangledName()}_{Name}_{Type.GetMangledName()}"
 			: Name;
 
-		public void SetFlag(FunctionFlags flag) 
-			=> Flags |= flag;
+		public void MarkAsMemberFunc() 
+			=> Flags |= FunctionFlags.MemberFunc;
 
 		public static implicit operator Value(Function f) => new Value
 		{

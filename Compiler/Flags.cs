@@ -13,5 +13,6 @@ namespace Leaf.Compilation
 		External	= 0b00010010,
 		Primitive	= 0b00100000,
 		VarArgs		= 0b01000000,
+		MemberFunc	= 0b10000000,
 	}
 }
