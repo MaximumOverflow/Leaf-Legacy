@@ -56,6 +56,7 @@ namespace Leaf.Compilation.Optimization
 
 				case OptimizationLevel.Basic:
 				{
+					pass.AddDeadStoreEliminationPass();
 					pass.AddInstructionCombiningPass();
 					pass.AddConstantPropagationPass();
 					pass.AddCFGSimplificationPass();

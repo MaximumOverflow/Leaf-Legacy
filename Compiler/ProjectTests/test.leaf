@@ -10,10 +10,15 @@ def printf: (str: i8*) -> i32;
 def toString: (this: ref Vec2) {
 	printf(&"(%i, %i)", x, y);
 	return;
-} 
+}
+
+def freeThis: (this: mut ref Vec2) {
+	free this;
+	return;
+}
 
 def main: () -> i8 {
-	let vec = Vec2 {x = 42, y = 64};
-	vec.toString();
+	var vec = Vec2 {x = 42, y = 64};
+	vec.freeThis();
 	return 0;	
 }

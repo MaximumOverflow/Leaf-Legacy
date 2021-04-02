@@ -157,6 +157,9 @@ namespace Leaf.Compilation.Values
 							return overloads.GetImplementation(args);
 						}
 
+						if ((options.Flags & ValueRetrievalFlags.GetTypeOnly) != 0)
+							return new Value {Type = member.Type};
+
 						return new Value
 						{
 							Type = member.Type,

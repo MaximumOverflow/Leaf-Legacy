@@ -123,21 +123,16 @@ namespace Leaf.Compilation.Functions
 			
 			foreach (var param in Parameters.Values)
 			{
+				var llvmValue = builder.BuildAlloca(param.Type);
+				builder.BuildStore(_llvmValueRef.Value.Params[param.Index], llvmValue);
+				
 				var variable = new Value
 				{
 					Type = param.Type,
+					LlvmValue = llvmValue,
 					Flags = param.Flags | ValueFlags.Parameter,
-					LlvmValue = builder.BuildAlloca(param.Type),
-				};
-
-				builder.BuildStore(_llvmValueRef.Value.Params[param.Index], variable.LlvmValue);
-				variable = new Value
-				{
-					Type = variable.Type,
-					Flags = variable.Flags,
-					LlvmValue = variable.LlvmValue,
-					Allocator = variable.Type is ReferenceType
-						? builder.BuildStructGEP(variable.LlvmValue, 1)
+					Allocator = param.Type is ReferenceType
+						? builder.BuildLoad(builder.BuildStructGEP(llvmValue, 1))
 						: default,
 				};
 				

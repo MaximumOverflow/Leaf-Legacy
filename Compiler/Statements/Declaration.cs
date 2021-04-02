@@ -16,7 +16,7 @@ namespace Leaf.Compilation.Statements
 		{
 			var builder = ctx.Builder;
 			var name = d.Id().GetText();
-			var type = ctx.CurrentFragment.GetType(d.t);
+			var type = ctx.CurrentFragment.GetType(d.t, ctx);
 			
 			var allocator = d.alloc != null
 				? ctx.CurrentFragment.GetType(d.alloc) as Allocator
@@ -76,7 +76,6 @@ namespace Leaf.Compilation.Statements
 				if (allocator == null)
 					throw new InvalidTypeException(ctx.CurrentFragment.GetType(d.alloc), ctx.CurrentFragment, d.alloc!.Start.Line);
 
-				//TODO Implement constant folding for stack based values
 				variable = allocator.Allocate(type, d.Var() != null, in ctx, name);
 
 				builder.BuildStore(value.AsRValue(in ctx).LlvmValue, variable.LlvmValue);
@@ -96,9 +95,18 @@ namespace Leaf.Compilation.Statements
 			if (!value.Allocator.HasValue)
 				throw new CompilationException("Stack allocated values cannot be freed.", ctx.CurrentFragment, f.Start.Line);
 
-			var vTable = builder.BuildLoad(value.Allocator.Value);
+			var vTable = value.Allocator.Value;
+			if (vTable == null)
+				throw new CompilationException("Value cannot be freed.", ctx.CurrentFragment, f.Start.Line);
+			
 			var fn = builder.BuildLoad(builder.BuildStructGEP(vTable, 1, "free_fn"));
-			builder.BuildCall(fn, stackalloc LLVMValueRef[] {value.AsPlainLValue(in ctx).LlvmValue}, "");
+			if (fn == null)
+				throw new CompilationException("Allocator does not define a 'free' function.", ctx.CurrentFragment, f.Start.Line);
+			
+			builder.BuildCall(fn, stackalloc LLVMValueRef[]
+			{
+				builder.BuildPointerCast(value.AsPlainLValue(in ctx).LlvmValue, LLVMTypeRef.CreatePointer(LLVMTypeRef.Int8, 0))
+			}, "");
 
 			return new Value {Type = ctx.GlobalContext.GlobalNamespace.Types["void"]};
 		}

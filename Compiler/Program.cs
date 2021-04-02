@@ -110,6 +110,8 @@ namespace Leaf.Compilation
 				Console.WriteLine("\nExecuting program:");
 				var program = Process.Start("a.out");
 				program.WaitForExit();
+				Console.ForegroundColor = ConsoleColor.DarkBlue;
+				Console.WriteLine($"Program exited with code: {program.ExitCode}");
 			}
 		}
     }

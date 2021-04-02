@@ -53,7 +53,7 @@ namespace Leaf.Compilation.Types.Allocators
 				throw new CompilationException($"Allocator '{this}' does not define function 'allocate'.", null);
 			
 			if (FreeFn == null)
-				throw new CompilationException($"Allocator '{this}' does not define function 'allocate'.", null);
+				throw new CompilationException($"Allocator '{this}' does not define function 'free'.", null);
 			
 			vtp = module.LlvmModule.AddGlobal(CompilationContext.AllocatorVTableType, VtablePtrName);
 			vtp.Initializer = LLVMValueRef.CreateConstNamedStruct(vtt, stackalloc LLVMValueRef[] 
