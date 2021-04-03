@@ -72,7 +72,7 @@ namespace Leaf.Compilation
 		public Module GetModule(string name)
 		{
 			if(string.IsNullOrEmpty(name) || name == Project.Name)
-				return Modules.TryGetValue("__root_module", out var mainModule) 
+				return Modules.TryGetValue(name, out var mainModule) 
 					? mainModule : AddModule(name);
 			
 			return Modules.TryGetValue(name, out var module) ? module : AddModule(name);
@@ -84,6 +84,7 @@ namespace Leaf.Compilation
 			{
 				var module = new Module(Project.Name ?? "__root_module", new DirectoryInfo(Project.SourceDirectory), this);
 				Modules.Add(Project.Name ?? "", module);
+				module.EnumerateFragments();
 				return module;
 			}
 			
@@ -94,15 +95,36 @@ namespace Leaf.Compilation
 			Modules.Add(name, module2);
 			return module2;
 		}
+
+		public Namespace GetNamespace(string name)
+		{
+			Span<string> subNs = name.Split('.');
+			var module = GetModule(subNs[0]);
+			var ns = module.RootNamespace;
+
+			while (subNs.Length > 1)
+			{
+				subNs = subNs[1..];
+				if (!ns.Children.TryGetValue(subNs[0], out var child))
+				{
+					child = new Namespace(ns, subNs[0], new DirectoryInfo(ns.Directory!.FullName + '/' + subNs[0]), this);
+					child.EnumerateFragments();
+				}
+
+				ns = child;
+			}
+
+			return ns;
+		}
 	}
 
 	#nullable disable
 	public readonly struct LocalCompilationContext : IDisposable
 	{
-		private static readonly ConcurrentBag<Stack<Scope>> ScopeStackPool = new();
-		
-		public readonly Fragment CurrentFragment;
+		private static readonly ConcurrentBag<Stack<Scope>> ScopeStackPool = new ConcurrentBag<Stack<Scope>>();
+
 		public readonly LLVMBuilderRef Builder;
+		public readonly Fragment CurrentFragment;
 		public readonly GlobalCompilationContext GlobalContext;
 		
 		public readonly Type CurrentType;
@@ -121,11 +143,11 @@ namespace Leaf.Compilation
 
 		public Scope CurrentScope => ScopeStack.Peek();
 
-		public Scope PushScope()
+		public Scope PushScope(string blockName = "")
 		{
 			var scope = ScopeStack.IsNullOrEmpty()
-				? new Scope(null, CurrentFunction)
-				: new Scope(ScopeStack.Peek(), CurrentFunction);
+				? new Scope(null, CurrentFunction, blockName)
+				: new Scope(ScopeStack.Peek(), CurrentFunction, blockName);
 			
 			ScopeStack.Push(scope);
 			return scope;

@@ -56,7 +56,7 @@ String: '"' (Escape | ~[\\"])* '"';
 CString: '&' '"' (Escape | ~[\\"])* '"';
 
 Id: [a-zA-Z_][a-zA-Z0-9_]*;
-namespace: Id '.' Id;
+namespace: Id ('.' Id)*;
 operator_id: Id | Add | Sub | Mul | Div | Mod | As | DynamicAccessor;
 
 //#### Types ####
@@ -176,5 +176,5 @@ generic_impl_list: '<' type (',' type)* '>';
 
 
 //#### Entry Point ####
-ns_import: 'import' namespace ('as' alias=Id);
+ns_import: 'import' namespace ('as' alias=Id)? ';';
 entry_point: ns_import* def*;

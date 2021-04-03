@@ -16,7 +16,7 @@ namespace Leaf.Compilation.Statements
 			var boolT = ctx.GlobalContext.GlobalNamespace.Types["bool"];
 
 			var checkBlock = fn.LlvmValue.AppendBasicBlock("");
-			var whileScope = new Scope(currentScope, ctx.CurrentFunction);
+			var whileScope = ctx.PushScope();
 			var whileBlock = whileScope.LlvmBlock;
 			var continueBlock = currentScope.AppendLlvmBlock();
 
@@ -35,6 +35,7 @@ namespace Leaf.Compilation.Statements
 			
 			builder.BuildBr(checkBlock);
 			builder.PositionAtEnd(continueBlock);
+			ctx.PopScope();
 
 			return check;
 		}

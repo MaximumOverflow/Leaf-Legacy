@@ -10,7 +10,8 @@ using Leaf.Compilation.Types.Attributes;
 namespace Leaf.Compilation.CompilationUnits
 {
     public sealed class Namespace
-    {
+	{
+		private bool _enumerated;
         public readonly string Name;
         public readonly Module Module;
         public readonly Namespace? Parent;
@@ -47,6 +48,9 @@ namespace Leaf.Compilation.CompilationUnits
 
 		public void EnumerateFragments()
 		{
+			if(_enumerated) return;
+			_enumerated = true;
+			
 			if (Directory == null) return;
 			var files = Directory.EnumerateFiles("*.leaf").ToArray();
 			var fragments = files.ArraySelect(f => new Fragment(f, this));

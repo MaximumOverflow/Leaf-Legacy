@@ -1,0 +1,8 @@
+def Vec2: struct {
+	x: i32;
+	y: i32;
+}
+
+def operator +: (this: ref Vec2, other: Vec2) -> Vec2 {
+	return Vec2{x = x + other.x, y = y + other.y};
+}

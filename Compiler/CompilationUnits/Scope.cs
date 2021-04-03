@@ -20,16 +20,16 @@ namespace Leaf.Compilation.CompilationUnits
 		public LLVMBasicBlockRef LlvmBlock { get; private set; }
 		public Namespace Namespace => Function.Fragment.Namespace;
 
-		public Scope(Scope? parent, Function function)
+		public Scope(Scope? parent, Function function, string blockName = "")
 		{
 			Parent = parent;
 			Function = function;
-			LlvmBlock = AppendLlvmBlock();
+			LlvmBlock = AppendLlvmBlock(blockName);
 			Variables = VarDictPool.TakeOrCreate();
 		}
 		
-		public LLVMBasicBlockRef AppendLlvmBlock()
-			=> Function.LlvmValue.AppendBasicBlock("");
+		public LLVMBasicBlockRef AppendLlvmBlock(string name = "")
+			=> LlvmBlock = Function.LlvmValue.AppendBasicBlock(name);
 
 		public bool SetReturnValue(in Value value)
 		{

@@ -2,6 +2,7 @@ using Type = Leaf.Compilation.Types.Type;
 using Leaf.Compilation.Reflection.Static;
 using Leaf.Compilation.Types.Attributes;
 using Leaf.Compilation.Exceptions;
+using Leaf.Compilation.Functions;
 using Leaf.Compilation.Grammar;
 using Leaf.Compilation.Values;
 using Leaf.Compilation.Types;
@@ -32,6 +33,10 @@ namespace Leaf.Compilation.CompilationUnits
 					
 					ns = ns.Parent;
 				}
+				
+				foreach (var imported in ImportedNamespaces)
+					if (imported.Types.TryGetValue(name, out type))
+						return type;
 
 				throw new TypeNotFoundException(name, this, t.Start.Line);
 			}
@@ -74,6 +79,18 @@ namespace Leaf.Compilation.CompilationUnits
 			}
 
 			throw new TypeNotFoundException(name, this, a.Start.Line);
+		}
+
+		public bool TryGetOverloadGroup(string name, out OverloadGroup? overloads)
+		{
+			if (Namespace.Functions.TryGetValue(name, out overloads))
+				return true;
+
+			foreach (var ns in ImportedNamespaces)
+				if (ns.Functions.TryGetValue(name, out overloads))
+					return true;
+
+			return false;
 		}
 	}
 }

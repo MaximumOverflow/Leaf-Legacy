@@ -79,6 +79,21 @@ namespace Leaf.Compilation.Functions
 			_scope = def.function_scope();
 		}
 
+
+		/// <summary>A copy constructor used exclusively for linkage.</summary>
+		public Function(Function fn, LLVMValueRef llvmValue)
+		{
+			Type = fn.Type;
+			Name = fn.Name;
+			Flags = fn.Flags;
+			_scope = fn._scope;
+			Fragment = fn.Fragment;
+			Attributes = fn.Attributes;
+			Parameters = fn.Parameters;
+			_llvmValueRef = fn.LlvmValue;
+			_llvmValueRef = llvmValue;
+		}
+
 		public Function(string name, Fragment fragment, LeafParser.Function_declContext def, AttrCtx[]? attribs)
 		: this(name, fragment, def.type(), def.parameter_def(), attribs)
 		{
@@ -160,6 +175,12 @@ namespace Leaf.Compilation.Functions
 					statement.Compile(in localContext);
 				
 				//TODO Check return type
+				if (!scope.ReturnValue.HasValue)
+				{
+					if (ReturnType.LlvmType.Kind == LLVMTypeKind.LLVMVoidTypeKind)
+						builder.BuildRetVoid();
+					else throw new CompilationException($"Function '{name}' does not return a value.", Fragment);
+				}
 			}
 			catch (CompilationException e) { throw new FunctionCompilationException(this, e); }
 

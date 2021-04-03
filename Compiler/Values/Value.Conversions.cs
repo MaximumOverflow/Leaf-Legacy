@@ -88,6 +88,7 @@ namespace Leaf.Compilation.Values
 						return new Value
 						{
 							Type = type,
+							Flags = Flags,
 							LlvmValue = llvmValue,
 						};
 					}

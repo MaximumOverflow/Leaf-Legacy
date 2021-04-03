@@ -21,8 +21,7 @@ namespace Leaf.Compilation.CompilationUnits
 		public readonly Dictionary<LLVMValueRef, Value> Constants;
 		public readonly Dictionary<string, Value> StrConstants;
 
-		private readonly HashSet<Type> _foreignTypes;
-		private readonly HashSet<Function> _foreignFunctions;
+		private readonly Dictionary<Function, Function> _foreignFunctions;
 
 		public Module(string name, DirectoryInfo rootDirectory, GlobalCompilationContext context)
 		{
@@ -33,11 +32,11 @@ namespace Leaf.Compilation.CompilationUnits
 			Constants = new Dictionary<LLVMValueRef, Value>();
 			RootNamespace = new Namespace(this, rootDirectory);
 
-			_foreignTypes = new HashSet<Type>();
-			_foreignFunctions = new HashSet<Function>();
-
-			RootNamespace.EnumerateFragments();
+			_foreignFunctions = new Dictionary<Function, Function>();
 		}
+		
+		public void EnumerateFragments() => RootNamespace.EnumerateFragments();
+
 
 		public void OptimizeAll()
 		{
@@ -58,16 +57,20 @@ namespace Leaf.Compilation.CompilationUnits
 				OptimizeAll(pass, child);
 		}
 
-		public void EnsureLinkage(Function function)
+		public void EnsureLinkage(ref Function function)
 		{
 			if(function.Fragment.Module == this)
 				return;
-			
-			if(_foreignFunctions.Contains(function))
-				return;
 
-			_foreignFunctions.Add(function);
-			LlvmModule.AddFunction(function.GetMangledName(), function.Type.LlvmType);
+			if (_foreignFunctions.TryGetValue(function, out var fn))
+			{
+				function = fn;
+				return;
+			}
+
+			fn = new Function(function, LlvmModule.AddFunction(function.GetMangledName(), function.Type.LlvmType));
+			_foreignFunctions.Add(function, fn);
+			function = fn;
 		}
 
 		public Value CreateAttributeSingleton(AttributeType type)

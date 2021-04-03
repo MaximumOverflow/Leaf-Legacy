@@ -28,6 +28,9 @@ namespace Leaf.Compilation.Statements
 
 				var @while = s.@while();
 				if (@while != null) return @while.Compile(in ctx);
+ 				
+				var @if = s.@if();
+				if (@if != null) return @if.Compile(in ctx);
 			}
 			catch (CompilationException e) 
 			{ throw new CompilationException("Cannot compile statement.", ctx.CurrentFragment, s.Start.Line, e); }

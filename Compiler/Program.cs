@@ -70,7 +70,7 @@ namespace Leaf.Compilation
 			Console.WriteLine($"\nLLVM IR generation completed in {sw.ElapsedMilliseconds}ms");
 
 			var modules = context.Modules.Values.ToArray();
-			var filePaths = modules.ArraySelect(m => $"{options.SourceDirectory}/.build/{m.Name}.ll");
+			var filePaths = modules.ArraySelect(m => $"{options.SourceDirectory}.build/{m.Name}.ll");
 
 			Directory.CreateDirectory($"{options.SourceDirectory}/.build/");
 			

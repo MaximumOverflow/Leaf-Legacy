@@ -10,7 +10,9 @@ namespace Leaf.Compilation.Values
 	public enum Operator
 	{
 		Add, Sub,
-		Mul, Div, Mod
+		Mul, Div, Mod,
+		
+		Eq, Neq
 	}
 
 	public static class OperatorExtensions
@@ -22,6 +24,8 @@ namespace Leaf.Compilation.Values
 			Operator.Mul => "*",
 			Operator.Div => "/",
 			Operator.Mod => "%",
+			Operator.Eq => "==",
+			Operator.Neq => "!=",
 			_ => throw new ArgumentOutOfRangeException(nameof(op), op, null)
 		};
 	}
@@ -186,6 +190,26 @@ namespace Leaf.Compilation.Values
 							LlvmValue = (val0.Flags & ValueFlags.Constant) != 0 && (val1.Flags & ValueFlags.Constant) != 0
 								? LLVMValueRef.CreateConstFRem(val0.LlvmValue, val1.LlvmValue) 
 								: builder.BuildFRem(val0.LlvmValue, val1.LlvmValue)
+						};
+					
+					case Operator.Eq when val0.Type.LlvmType.Kind == LLVMTypeKind.LLVMIntegerTypeKind:
+						return new Value
+						{
+							Type = ctx.GlobalContext.GlobalNamespace.Types["bool"],
+							Flags = (val0.Flags & ValueFlags.Constant) != 0 && (val1.Flags & ValueFlags.Constant) != 0 ? ValueFlags.Constant : ValueFlags.None,
+							LlvmValue = (val0.Flags & ValueFlags.Constant) != 0 && (val1.Flags & ValueFlags.Constant) != 0
+								? LLVMValueRef.CreateConstInt(LLVMTypeRef.Int1, val0.LlvmValue == val1.LlvmValue ? 1u : 0u) 
+								: builder.BuildICmp(LLVMIntPredicate.LLVMIntEQ, val0.LlvmValue, val1.LlvmValue)
+						};
+					
+					case Operator.Neq when val0.Type.LlvmType.Kind == LLVMTypeKind.LLVMIntegerTypeKind:
+						return new Value
+						{
+							Type = ctx.GlobalContext.GlobalNamespace.Types["bool"],
+							Flags = (val0.Flags & ValueFlags.Constant) != 0 && (val1.Flags & ValueFlags.Constant) != 0 ? ValueFlags.Constant : ValueFlags.None,
+							LlvmValue = (val0.Flags & ValueFlags.Constant) != 0 && (val1.Flags & ValueFlags.Constant) != 0
+								? LLVMValueRef.CreateConstInt(LLVMTypeRef.Int1, val0.LlvmValue != val1.LlvmValue ? 1u : 0u) 
+								: builder.BuildICmp(LLVMIntPredicate.LLVMIntNE, val0.LlvmValue, val1.LlvmValue)
 						};
 				}
 			}

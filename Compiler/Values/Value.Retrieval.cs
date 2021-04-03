@@ -122,6 +122,8 @@ namespace Leaf.Compilation.Values
 				LlvmValue = LLVMValueRef.CreateConstInt(LLVMTypeRef.Int1, 0),
 			};
 
+			if (v.Eq() != null) return GetOp(v.value(0), v.value(1), Operator.Eq, in ctx, in options);
+			if (v.Neq() != null) return GetOp(v.value(0), v.value(1), Operator.Neq, in ctx, in options);
 			if (v.Add() != null) return GetOp(v.value(0), v.value(1), Operator.Add, in ctx, in options);
 			if (v.Sub() != null) return GetOp(v.value(0), v.value(1), Operator.Sub, in ctx, in options);
 			if (v.Mul() != null) return GetOp(v.value(0), v.value(1), Operator.Mul, in ctx, in options);
@@ -207,14 +209,13 @@ namespace Leaf.Compilation.Values
 					catch (MemberNotFoundException) {}
 				}
 
-				if (options.Parameters != null && scope.Namespace.Functions.TryGetValue(id, out var overloads))
+				if (options.Parameters != null && ctx.CurrentFragment.TryGetOverloadGroup(id, out var overloads))
 				{
 					if ((options.Flags & ValueRetrievalFlags.GetByRef) != 0)
 						throw new CompilationException("Functions cannot be referenced.", ctx.CurrentFragment);
 					
-					var fn = overloads.GetImplementation(options.Parameters);
-					if (fn.Fragment.Module != ctx.CurrentFragment.Module)
-						ctx.CurrentFragment.Module.EnsureLinkage(fn);
+					var fn = overloads!.GetImplementation(options.Parameters);
+					ctx.CurrentFragment.Module.EnsureLinkage(ref fn);
 
 					return fn;
 				}
