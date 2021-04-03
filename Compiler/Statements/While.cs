@@ -25,7 +25,7 @@ namespace Leaf.Compilation.Statements
 			var check = Value.Get(w.value(), in ctx);
 
 			if (check.Type != boolT)
-				throw new NotImplementedException();
+				check.CastTo(boolT, in ctx, false, w.value());
 
 			builder.BuildCondBr(check.LlvmValue, whileBlock, continueBlock);
 			builder.PositionAtEnd(whileBlock);

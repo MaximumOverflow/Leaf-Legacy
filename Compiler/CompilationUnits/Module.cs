@@ -1,14 +1,14 @@
-using System;
+using Type = Leaf.Compilation.Types.Type;
+using Leaf.Compilation.Types.Attributes;
 using Leaf.Compilation.Optimization;
+using Leaf.Compilation.Exceptions;
 using System.Collections.Generic;
+using Leaf.Compilation.Functions;
 using Leaf.Compilation.Values;
+using Leaf.Compilation.Types;
 using LLVMSharp.Interop;
 using System.IO;
-using Leaf.Compilation.Exceptions;
-using Leaf.Compilation.Functions;
-using Leaf.Compilation.Types;
-using Leaf.Compilation.Types.Attributes;
-using Type = Leaf.Compilation.Types.Type;
+using System;
 
 namespace Leaf.Compilation.CompilationUnits
 {
@@ -18,7 +18,8 @@ namespace Leaf.Compilation.CompilationUnits
         public readonly Namespace RootNamespace;
         public readonly LLVMModuleRef LlvmModule;
         public readonly GlobalCompilationContext Context;
-		public readonly Dictionary<string, Value> Constants;
+		public readonly Dictionary<LLVMValueRef, Value> Constants;
+		public readonly Dictionary<string, Value> StrConstants;
 
 		private readonly HashSet<Type> _foreignTypes;
 		private readonly HashSet<Function> _foreignFunctions;
@@ -28,7 +29,8 @@ namespace Leaf.Compilation.CompilationUnits
 			Name = name;
 			Context = context;
 			LlvmModule = LLVMModuleRef.CreateWithName(name);
-			Constants = new Dictionary<string, Value>();
+			StrConstants = new Dictionary<string, Value>();
+			Constants = new Dictionary<LLVMValueRef, Value>();
 			RootNamespace = new Namespace(this, rootDirectory);
 
 			_foreignTypes = new HashSet<Type>();
@@ -85,6 +87,68 @@ namespace Leaf.Compilation.CompilationUnits
 				Type = type,
 				LlvmValue = attr,
 			};
+		}
+
+		public Value GetConstCString(string text, in LocalCompilationContext ctx)
+		{
+			var builder = ctx.Builder;
+			var type = PointerType.Create(Context.GlobalNamespace.Types["i8"]);
+
+			Span<LLVMValueRef> indices = stackalloc LLVMValueRef[]
+			{
+				LLVMValueRef.CreateConstInt(LLVMTypeRef.Int64, 0),
+				LLVMValueRef.CreateConstInt(LLVMTypeRef.Int64, 0),
+			};
+			
+			if (StrConstants.TryGetValue(text, out var str))
+				return new Value
+				{
+					Type = type, 
+					Flags = ValueFlags.Constant,
+					LlvmValue = builder.BuildGEP(str.LlvmValue, indices, "")
+				};
+			
+			var llvmStr = Context.LlvmContext.GetConstString(text, false);
+			var llvmValue = LlvmModule.AddGlobal(llvmStr.TypeOf, "");
+			unsafe {LLVM.SetGlobalConstant(llvmValue, 1);}
+			llvmValue.Initializer = llvmStr;
+			
+			StrConstants.Add(text, new Value
+			{
+				Type = type, 
+				LlvmValue = llvmValue, 
+				Flags = ValueFlags.LValue | ValueFlags.Constant
+			});
+			
+			return new Value
+			{
+				Type = type,
+				Flags = ValueFlags.Constant,
+				LlvmValue = builder.BuildGEP(llvmValue, indices, "")
+			};
+		}
+
+		public Value GetConstStruct(StructType type, Span<LLVMValueRef> values, in LocalCompilationContext ctx)
+		{
+			var builder = ctx.Builder;
+			var constant = LLVMValueRef.CreateConstNamedStruct(type, values);
+
+			if (Constants.TryGetValue(constant, out var value))
+				return value;
+
+			var llvmValue = LlvmModule.AddGlobal(type, "");
+			unsafe {LLVM.SetGlobalConstant(llvmValue, 1);}
+			llvmValue.Initializer = constant;
+
+			var variable = new Value
+			{
+				Type = type,
+				LlvmValue = llvmValue,
+				Flags = ValueFlags.LValue | ValueFlags.Constant,
+			};
+			
+			Constants.Add(constant, variable);
+			return variable;
 		}
 	}
 }

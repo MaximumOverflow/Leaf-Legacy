@@ -1,10 +1,9 @@
 using Type = Leaf.Compilation.Types.Type;
-using Leaf.Compilation.Types.Allocators;
+using Leaf.Compilation.Exceptions;
 using Leaf.Compilation.Functions;
 using Leaf.Compilation.Types;
 using LLVMSharp.Interop;
 using System;
-using Leaf.Compilation.Exceptions;
 
 namespace Leaf.Compilation.Values
 {
@@ -36,6 +35,7 @@ namespace Leaf.Compilation.Values
 
 		public Value AsRValue(in LocalCompilationContext ctx)
 		{
+			var builder = ctx.Builder;
 			if ((Flags & ValueFlags.LValue) == 0)
 				return this;
 			
@@ -44,14 +44,14 @@ namespace Leaf.Compilation.Values
 				Type = refT.Base,
 				Allocator = Allocator,
 				Flags = Flags & ~ValueFlags.Alias,
-				LlvmValue = ctx.Builder.BuildLoad(ctx.Builder.BuildStructGEP(LlvmValue, 1))
+				LlvmValue = builder.BuildLoad(builder.BuildLoad(builder.BuildStructGEP(LlvmValue, 0)))
 			};
 
 			return new Value
 			{
 				Type = Type,
 				Flags = ValueFlags.None,
-				LlvmValue = ctx.Builder.BuildLoad(LlvmValue),
+				LlvmValue = builder.BuildLoad(LlvmValue),
 			};
 		}
 		

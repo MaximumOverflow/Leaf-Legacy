@@ -39,7 +39,10 @@ namespace Leaf.Compilation.Types
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		private static string GetMangledName(Type @base)
-			=> $"ref_{@base}";
+			=> $"lref_{@base}";
+		
+		public override string ToString() => $"lref {Base}";
+
 
 		public override LLVMValueRef DefaultInitializer 
 			=> throw new InvalidTypeException(this, null);

@@ -26,7 +26,7 @@ namespace Leaf.Compilation.Statements
 				throw new NotImplementedException();
 
 			if (value.Type != ctx.CurrentFunction.ReturnType)
-				throw new NotImplementedException();
+				value = value.CastTo(ctx.CurrentFunction.ReturnType, in ctx, node: r);
 
 			if (value.Type is ReferenceType refT)
 				throw new NotImplementedException();

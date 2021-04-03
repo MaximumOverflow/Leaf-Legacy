@@ -1,10 +1,10 @@
+using StructType = Leaf.Compilation.Types.StructType;
 using Type = Leaf.Compilation.Types.Type;
 using Leaf.Compilation.Exceptions;
-using Leaf.Compilation.Grammar;
-using System;
 using Leaf.Compilation.Functions;
+using Leaf.Compilation.Grammar;
 using Leaf.Compilation.Types;
-using StructType = Leaf.Compilation.Types.StructType;
+using System;
 
 namespace Leaf.Compilation.CompilationUnits
 {
@@ -89,7 +89,28 @@ namespace Leaf.Compilation.CompilationUnits
 		{
 			var impl = def.function_impl();
 			var name = def.operator_id().GetText();
-			throw new NotImplementedException();
+			
+			try
+			{
+				var func = DefineFunction(name, null, impl, def.generic_def_list(), attribs);
+
+				if ((func.Flags & FunctionFlags.MemberFunc) == 0)
+					throw new CompilationException("Operator is not bound to a type. Consider using 'this' as the first parameter.", 
+						this, def.Start.Line);
+			
+				var requiredParameters = name switch
+				{
+					"as" => 1,
+					"+" or "-" or "*" or "/" or "%" => 2,
+					_ => throw new NotImplementedException($"Operator {name} is not supported.")
+				};
+			
+				if (func.Parameters.Count != requiredParameters)
+					throw new CompilationException($"Invalid number of parameters specified. Required: {requiredParameters}, found: {func.Parameters.Count}.", 
+						this, def.Start.Line);
+			}
+			catch (CompilationException e)
+			{ throw new CompilationException($"Could not define operator '{name}'.", this, def.Start.Line, e); }
 		}
 	}
 }

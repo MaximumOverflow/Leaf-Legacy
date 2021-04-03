@@ -6,6 +6,7 @@ using LLVMSharp.Interop;
 using System;
 using System.Runtime.CompilerServices;
 using DotNetCoreUtilities.CodeGeneration;
+using Leaf.Compilation.Functions;
 
 namespace Leaf.Compilation.Statements
 {
@@ -49,22 +50,20 @@ namespace Leaf.Compilation.Statements
 			var builder = ctx.Builder;
 			if (value.Type is not FunctionType funcT)
 				throw new InvalidTypeException(value.Type, ctx.CurrentFragment);
-
-			if (funcT.LlvmType.IsFunctionVarArg)
-			{
-				if (!Extensions.EnumerableExtensions.IncompleteSequenceEqual(funcT.ParamTypes, args, (Value v) => v.Type))
-					throw new CompilationException("Invalid parameters supplied to function call.", ctx.CurrentFragment);
-			}
-			else if (!Extensions.EnumerableExtensions.SequenceEqual(funcT.ParamTypes, args, v => v.Type))
-				throw new CompilationException("Invalid parameters supplied to function call.", ctx.CurrentFragment);
+			
+			if (!OverloadGroup.CompareTypes(funcT.ParamTypes, args, funcT.LlvmType.IsFunctionVarArg))
+				throw new CompilerBugException("Invalid parameters supplied to function call.");
 
 			Span<LLVMValueRef> argValues = stackalloc LLVMValueRef[args.Length];
 			for (var i = 0; i < args.Length; i++)
 			{
-				//TODO WARNING This might be a problem with ref params
-				argValues[i] = i < funcT.ParamTypes.Length && funcT.ParamTypes[i] is not ReferenceType
-					? args[i].AsRValue(in ctx).LlvmValue
-					: builder.BuildLoad(args[i].LlvmValue);
+				if (i >= funcT.ParamTypes.Length)
+				{
+					argValues[i] = args[i].AsRValue(in ctx).LlvmValue;
+					continue;
+				}
+
+				argValues[i] = args[i].CastTo(funcT.ParamTypes[i], in ctx).LlvmValue;
 			}
 
 			var ret = value.Call(argValues, in ctx);

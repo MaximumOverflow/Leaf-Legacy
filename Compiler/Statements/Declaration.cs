@@ -37,6 +37,7 @@ namespace Leaf.Compilation.Statements
 		public static Value Compile(this LeafParser.Var_def_vContext d, in LocalCompilationContext ctx)
 		{
 			var builder = ctx.Builder;
+			var mutable = d.Var() != null;
 			var name = d.Id().GetText();
 			var type = d.t != null 
 				? ctx.CurrentFragment.GetType(d.t) 
@@ -47,7 +48,7 @@ namespace Leaf.Compilation.Statements
 			
 			type ??= value.Type;
 			if (value.Type != type)
-				throw new NotImplementedException();
+				value = value.CastTo(type, in ctx, true, d);
 			
 			if (d.Ref() != null)
 			{
@@ -76,9 +77,15 @@ namespace Leaf.Compilation.Statements
 				if (allocator == null)
 					throw new InvalidTypeException(ctx.CurrentFragment.GetType(d.alloc), ctx.CurrentFragment, d.alloc!.Start.Line);
 
-				variable = allocator.Allocate(type, d.Var() != null, in ctx, name);
-
-				builder.BuildStore(value.AsRValue(in ctx).LlvmValue, variable.LlvmValue);
+				if ((value.Flags & ValueFlags.Constant) != 0 && !mutable)
+				{
+					variable = value;
+				}
+				else
+				{
+					variable = allocator.Allocate(type, mutable, in ctx, name);
+					builder.BuildStore(value.AsRValue(in ctx).LlvmValue, variable.LlvmValue);
+				}
 			}
 			
 			if (!ctx.CurrentScope.Variables.TryAdd(name, variable))

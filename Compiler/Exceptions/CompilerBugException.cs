@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System;
 
 namespace Leaf.Compilation.Exceptions
@@ -7,9 +8,9 @@ namespace Leaf.Compilation.Exceptions
 		public const string Goofed = "If you're reading this, I done goofed. Please send a bug report, so I don't goof up again.";
 		
 		public CompilerBugException() 
-			: base(Goofed) {}
+			: base(Goofed) => Debugger.Break();
 
 		public CompilerBugException(string? message) 
-			: base(Goofed + '\n' + message) {}
+			: base(Goofed + '\n' + message) => Debugger.Break();
 	}
 }

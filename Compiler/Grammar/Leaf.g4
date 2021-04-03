@@ -111,8 +111,9 @@ floating_point: FloatingPoint;
 
 value
 	: Id generic_impl_list?
-	| value (nested='.' value)
 	| '(' par=value ')'
+	| value As type
+	| value nested=DynamicAccessor value
 	| call=value '(' (value (',' value)*)? ')'
 	//Constants
 	| True | False

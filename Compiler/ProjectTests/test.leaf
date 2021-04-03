@@ -7,18 +7,13 @@ def Vec2: struct {
 @External
 def printf: (str: i8*) -> i32;
 
-def toString: (this: ref Vec2) {
-	printf(&"(%i, %i)", x, y);
-	return;
-}
-
-def freeThis: (this: mut ref Vec2) {
-	free this;
-	return;
-}
-
-def main: () -> i8 {
-	var vec = Vec2 {x = 42, y = 64};
-	vec.freeThis();
-	return 0;	
+def main: () -> i32 {
+//	var a: i32 = 0;
+//	while a != 100 {
+//		a = a + 1;
+//		printf(&"%i\n", a);
+//	}
+	var a: i32 = 42;
+	a = 69;
+	return a;
 }

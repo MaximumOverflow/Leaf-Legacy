@@ -17,7 +17,7 @@ namespace Leaf.Compilation.Statements
 					ctx.CurrentScope.Function.Fragment, a.Start.Line);
 
 			if (value.Type != variable.Type)
-				throw new NotImplementedException();
+				value = value.CastTo(variable.Type, in ctx, false, a.value(1));
 
 			value = value.AsRValue(in ctx);
 

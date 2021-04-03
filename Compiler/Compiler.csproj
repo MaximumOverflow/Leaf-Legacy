@@ -18,6 +18,7 @@
     <ItemGroup>
       <PackageReference Include="Antlr4.Runtime.Standard" Version="4.9.2" />
       <PackageReference Include="CommandLineParser" Version="2.8.0" />
+      <PackageReference Include="Crayon" Version="2.0.60" />
       <PackageReference Include="DotNetCoreUtilities" Version="1.4.0" />
       <PackageReference Include="LLVMSharp" Version="11.0.0-beta" />
     </ItemGroup>

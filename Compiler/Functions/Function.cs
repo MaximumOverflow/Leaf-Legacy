@@ -123,6 +123,18 @@ namespace Leaf.Compilation.Functions
 			
 			foreach (var param in Parameters.Values)
 			{
+				if (param.Type is LightReferenceType refT)
+				{
+					scope.Variables.Add(param.Name, new Value
+					{
+						Type = refT.Base,
+						Flags = ValueFlags.LValue,
+						LlvmValue = _llvmValueRef.Value.Params[param.Index],
+					});
+					
+					continue;
+				}
+				
 				var llvmValue = builder.BuildAlloca(param.Type);
 				builder.BuildStore(_llvmValueRef.Value.Params[param.Index], llvmValue);
 				

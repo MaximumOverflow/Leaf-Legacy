@@ -1,4 +1,5 @@
 using Leaf.Compilation.CompilationUnits;
+using System.Diagnostics;
 using System.Text;
 using System;
 
@@ -13,8 +14,9 @@ namespace Leaf.Compilation.Exceptions
 		public CompilationException(string? message, Fragment? fragment, int? line = null, CompilationException? cause = null) : base(message)
 		{
 			Line = line;
-			Fragment = fragment;
 			Cause = cause;
+			Fragment = fragment;
+			Debugger.Break();
 		}
 
 		public override string Message

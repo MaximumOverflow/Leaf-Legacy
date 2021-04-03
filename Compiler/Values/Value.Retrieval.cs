@@ -6,12 +6,12 @@ using System.Collections.Concurrent;
 using Leaf.Compilation.Exceptions;
 using Leaf.Compilation.Statements;
 using System.Collections.Generic;
+using Leaf.Compilation.Functions;
 using Leaf.Compilation.Grammar;
 using Leaf.Compilation.Types;
 using LLVMSharp.Interop;
 using System.Linq;
 using System;
-using Leaf.Compilation.Functions;
 
 namespace Leaf.Compilation.Values
 {
@@ -19,8 +19,9 @@ namespace Leaf.Compilation.Values
 	public enum ValueRetrievalFlags : byte
 	{
 		None				= 0b00000000,
-		GetTypeOnly			= 0b00000001,
-		AllowRefAliasing	= 0b00000010,
+		GetByRef			= 0b00000001,
+		GetTypeOnly			= 0b00000010,
+		AllowRefAliasing	= 0b00000100,
 	}
 	
 	public struct ValueRetrievalOptions
@@ -43,26 +44,21 @@ namespace Leaf.Compilation.Values
 				return TypeInfo.QueryValue(ctx.CurrentFragment.GetType(v.type(), ctx), v.Id().GetText(), v.value(), in ctx);
 
 			var id = v.Id()?.GetText();
-			if (id != null) return Get(id, in ctx, out parent, in options);
-			
+			if (id != null) return GetById(id, in ctx, out parent, in options);
+
 			var i = v.integer();
-			if (i != null) return Get(i, in ctx, in options);
+			if (i != null) return GetInteger(i, in ctx, in options);
 
 			var r = v.Ref();
 			if (r != null)
 			{
-				var value = Get(v.value(0), in ctx, in options, out parent);
-
-				if ((options.Flags & ValueRetrievalFlags.AllowRefAliasing) != 0 && ctx.CurrentScope.Variables.ContainsValue(value))
-					return new Value
-					{
-						Type = value.Type,
-						LlvmValue = value.LlvmValue,
-						Allocator = value.Allocator,
-						Flags = value.Flags | ValueFlags.Alias,
-					};
-
-				return CreateReference(value, in ctx, false);
+				return Get(v.value(0), in ctx, new ValueRetrievalOptions
+				{
+					Parent = options.Parent,
+					Parameters = options.Parameters,
+					ExpectedType = options.ExpectedType,
+					Flags = options.Flags | ValueRetrievalFlags.GetByRef,
+				}, out parent);
 			}
 
 			if (v.SizeOf() != null)
@@ -85,7 +81,7 @@ namespace Leaf.Compilation.Values
 			{
 				return (options.Flags & ValueRetrievalFlags.GetTypeOnly) != 0 
 					? new Value{Type = ctx.CurrentFragment.GetType(initList.type())}
-					: Get(initList, in ctx, in options);
+					: GetInitList(initList, in ctx, in options);
 			}
 
 			if (v.nested != null && !options.Parent.HasValue)
@@ -126,10 +122,17 @@ namespace Leaf.Compilation.Values
 				LlvmValue = LLVMValueRef.CreateConstInt(LLVMTypeRef.Int1, 0),
 			};
 
+			if (v.Add() != null) return GetOp(v.value(0), v.value(1), Operator.Add, in ctx, in options);
+			if (v.Sub() != null) return GetOp(v.value(0), v.value(1), Operator.Sub, in ctx, in options);
+			if (v.Mul() != null) return GetOp(v.value(0), v.value(1), Operator.Mul, in ctx, in options);
+			if (v.Div() != null) return GetOp(v.value(0), v.value(1), Operator.Div, in ctx, in options);
+			if (v.Mod() != null) return GetOp(v.value(0), v.value(1), Operator.Mod, in ctx, in options);
+			if (v.As() != null) return Get(v.value(0), in ctx, in options).CastTo(ctx.CurrentFragment.GetType(v.type(), ctx), in ctx, true, v);
+
 			throw new NotImplementedException();
 		}
 
-		private static Value Get(string id, in LocalCompilationContext ctx, out Value? parentVal, in ValueRetrievalOptions options = default)
+		private static Value GetById(string id, in LocalCompilationContext ctx, out Value? parentVal, in ValueRetrievalOptions options = default)
 		{
 			var builder = ctx.Builder;
 			if (options.Parent.HasValue)
@@ -142,12 +145,15 @@ namespace Leaf.Compilation.Values
 					{
 						if (!structT.Members.TryGetValue(id, out var member))
 						{
+							if ((options.Flags & ValueRetrievalFlags.GetByRef) != 0)
+								throw new CompilationException("Methods cannot be referenced.", ctx.CurrentFragment);
+							
 							var param = options.Parameters;
 							if(param == null) throw new MemberNotFoundException(id, structT, ctx.CurrentScope);
 
 							if (!structT.Methods.TryGetValue(id, out var overloads))
 								throw new MemberNotFoundException(id, structT, ctx.CurrentScope);
-							
+
 							var args = new Type[param.Length + 1];
 							args[0] = (parent.Flags & ValueFlags.Mutable) != 0
 								? ReferenceType.Create(parent.Type)
@@ -159,57 +165,67 @@ namespace Leaf.Compilation.Values
 
 						if ((options.Flags & ValueRetrievalFlags.GetTypeOnly) != 0)
 							return new Value {Type = member.Type};
-
-						return new Value
+						
+						var variable = new Value
 						{
 							Type = member.Type,
 							Flags = ValueFlags.LValue | (parent.Flags & ValueFlags.Mutable),
 							LlvmValue = builder.BuildStructGEP(parent.LlvmValue, member.Index),
 						};
+
+						if ((options.Flags & ValueRetrievalFlags.GetByRef) != 0)
+							return variable;
+
+						return variable.AsRValue(in ctx);
 					}
 					
 					default: throw new NotImplementedException($"Type {parent.Type.GetType()} is not supported");
 				}
 			}
-			else
+
+			parentVal = default;
+			var scope = ctx.CurrentScope;
+			while (scope != null)
 			{
-				parentVal = default;
-				var scope = ctx.CurrentScope;
-				while (scope != null)
-				{
-					if (scope.Variables.TryGetValue(id, out var variable))
-						return variable;
+				if (scope.Variables.TryGetValue(id, out var variable))
+					return variable;
 					
-					if ((ctx.CurrentFunction.Flags & FunctionFlags.MemberFunc) != 0)
+				if ((ctx.CurrentFunction.Flags & FunctionFlags.MemberFunc) != 0)
+				{
+					try
 					{
-						try
-						{
-							var opt = options;
-							opt.Parent = scope.Variables["this"];
-							var val = Get(id, in ctx, out var parent, in opt);
-							parentVal = parent;
+						var opt = options;
+						opt.Parent = scope.Variables["this"];
+						var val = GetById(id, in ctx, out var parent, in opt);
+						parentVal = parent;
+
+						if ((options.Flags & ValueRetrievalFlags.GetByRef) != 0)
 							return val;
-						}
-						catch (MemberNotFoundException) {}
+
+						return val.AsRValue(in ctx);
 					}
-
-					if (options.Parameters != null && scope.Namespace.Functions.TryGetValue(id, out var overloads))
-					{
-						var fn = overloads.GetImplementation(options.Parameters);
-						if (fn.Fragment.Module != ctx.CurrentFragment.Module)
-							ctx.CurrentFragment.Module.EnsureLinkage(fn);
-
-						return fn;
-					}
-
-					scope = scope.Parent;
+					catch (MemberNotFoundException) {}
 				}
 
-				throw new SymbolNotFoundException(id, ctx.CurrentScope);
+				if (options.Parameters != null && scope.Namespace.Functions.TryGetValue(id, out var overloads))
+				{
+					if ((options.Flags & ValueRetrievalFlags.GetByRef) != 0)
+						throw new CompilationException("Functions cannot be referenced.", ctx.CurrentFragment);
+					
+					var fn = overloads.GetImplementation(options.Parameters);
+					if (fn.Fragment.Module != ctx.CurrentFragment.Module)
+						ctx.CurrentFragment.Module.EnsureLinkage(fn);
+
+					return fn;
+				}
+
+				scope = scope.Parent;
 			}
+
+			throw new SymbolNotFoundException(id, ctx.CurrentScope);
 		}
 
-		private static Value Get(LeafParser.IntegerContext i, in LocalCompilationContext ctx, in ValueRetrievalOptions options)
+		private static Value GetInteger(LeafParser.IntegerContext i, in LocalCompilationContext ctx, in ValueRetrievalOptions options)
 		{
 			if (i.Integer() != null)
 			{
@@ -238,48 +254,17 @@ namespace Leaf.Compilation.Values
 		
 		private static Value GetCString(string text, in LocalCompilationContext ctx, in ValueRetrievalOptions options)
 		{
-			var builder = ctx.Builder;
 			var globalContext = ctx.GlobalContext;
 			var module = ctx.CurrentFragment.Module;
 			
-			var type = PointerType.Create(globalContext.GlobalNamespace.Types["i8"]);
-			if ((options.Flags & ValueRetrievalFlags.GetTypeOnly) != 0) return new Value {Type = type};
-
-			Span<LLVMValueRef> indices = stackalloc LLVMValueRef[]
-			{
-				LLVMValueRef.CreateConstInt(LLVMTypeRef.Int64, 0),
-				LLVMValueRef.CreateConstInt(LLVMTypeRef.Int64, 0),
-			};
+			if ((options.Flags & ValueRetrievalFlags.GetTypeOnly) != 0) return new Value
+				{ Type = PointerType.Create(globalContext.GlobalNamespace.Types["i8"]) };
 			
-			if (module.Constants.TryGetValue(text, out var str))
-				return new Value
-				{
-					Type = type, 
-					Flags = ValueFlags.Constant,
-					LlvmValue = builder.BuildGEP(str.LlvmValue, indices, "")
-				};
-
-			var llvmStr = globalContext.LlvmContext.GetConstString(text, false);
-			var llvmValue = module.LlvmModule.AddGlobal(llvmStr.TypeOf, "");
-			llvmValue.Initializer = llvmStr;
-
-			module.Constants.Add(text, new Value
-			{
-				Type = type, 
-				LlvmValue = llvmValue, 
-				Flags = ValueFlags.LValue
-			});
-
-			return new Value
-			{
-				Type = type,
-				Flags = ValueFlags.Constant,
-				LlvmValue = builder.BuildGEP(llvmValue, indices, "")
-			};
+			return module.GetConstCString(text, in ctx);
 		}
 
 		private static readonly ConcurrentBag<Dictionary<string, Value>> NameValueDictPool = new();
-		private static Value Get(LeafParser.Initialization_listContext initList, in LocalCompilationContext ctx, in ValueRetrievalOptions options)
+		private static Value GetInitList(LeafParser.Initialization_listContext initList, in LocalCompilationContext ctx, in ValueRetrievalOptions options)
 		{
 			var voidT = ctx.GlobalContext.GlobalNamespace.Types["void"];
 			var type = ctx.CurrentFragment.GetType(initList.type());
@@ -309,7 +294,7 @@ namespace Leaf.Compilation.Values
 				var val = Get(vals[i], in ctx, in opt);
 
 				if (val.Type != member.Type)
-					throw new NotImplementedException();
+					val = val.CastTo(member.Type, in ctx, false, vals[i]);
 
 				if (!members.TryAdd(name, val))
 					throw new CompilationException($"Duplicate assigment of member '{name}'.", ctx.CurrentFragment, ids[i].Symbol.Line);
@@ -318,28 +303,24 @@ namespace Leaf.Compilation.Values
 			if (members.Count != structT.Members.Count)
 				throw new CompilationException("All members must be initialized.", ctx.CurrentFragment, initList.Start.Line);
 
+			var @const = true;
 			var builder = ctx.Builder;
 			Span<LLVMValueRef> values = stackalloc LLVMValueRef[structT.Members.Count];
 
 			foreach (var (name, member) in structT.Members)
 			{
 				var mem = members[name];
+				if ((mem.Flags & ValueFlags.Constant) == 0)
+					@const = false;
+				
 				values[(int) member.Index] = (mem.Flags & ValueFlags.LValue) != 0
 					? builder.BuildLoad(mem.LlvmValue)
 					: mem.LlvmValue;
 			}
 
 			Value value;
+			if (@const) return ctx.CurrentFragment.Module.GetConstStruct(structT, values, in ctx);
 
-			if (members.Values.All(m => (m.Flags & ValueFlags.Constant) != 0))
-			{
-				value = new Value
-				{
-					Type = type,
-					Flags = ValueFlags.Constant,
-					LlvmValue = LLVMValueRef.CreateConstNamedStruct(type, values)
-				};
-			}
 			else //TODO You might want to implement it differently
 			{
 				var llvmValue = builder.BuildAlloca(type);
@@ -366,40 +347,29 @@ namespace Leaf.Compilation.Values
 		{
 			var builder = ctx.Builder;
 
-			if (light)
-			{
-				var type = LightReferenceType.Create(value.Type);
-				var reference = new Value
-				{
-					Type = type,
-					Flags = value.Flags,
-					Allocator = default,
-					LlvmValue = builder.BuildAlloca(type)
-				};
-				
-				builder.BuildStore(value.LlvmValue, reference.LlvmValue);
-				return reference;
-			}
-			else
-			{
-				var type = ReferenceType.Create(value.Type);
-				var reference = new Value
-				{
-					Type = type,
-					Flags = value.Flags,
-					Allocator = value.Allocator,
-					LlvmValue = builder.BuildAlloca(type)
-				};
-
-				builder.BuildStore(value.LlvmValue, builder.BuildStructGEP(reference.LlvmValue, 0));
+			if (light) return value;
 			
-				builder.BuildStore(value.Allocator ?? LLVMValueRef.CreateConstPointerNull(
-						LLVMTypeRef.CreatePointer(ctx.GlobalContext.AllocatorVTableType.LlvmType, 0)),
-					builder.BuildStructGEP(reference.LlvmValue, 1));
+			if (value.Type is ReferenceType)
+				return value;
 				
-				return reference;
-			}
+			var type = ReferenceType.Create(value.Type);
+			var llvmValue = builder.BuildAlloca(type);
+
+			builder.BuildStore(value.LlvmValue, builder.BuildStructGEP(llvmValue, 0));
+			
+			builder.BuildStore(value.Allocator ?? LLVMValueRef.CreateConstPointerNull(
+					LLVMTypeRef.CreatePointer(ctx.GlobalContext.AllocatorVTableType.LlvmType, 0)),
+				builder.BuildStructGEP(llvmValue, 1));
+				
+			var reference = new Value
+			{
+				Type = type,
+				Flags = value.Flags,
+				Allocator = value.Allocator,
+				LlvmValue = builder.BuildLoad(llvmValue)
+			};
+				
+			return reference;
 		}
 	}
-	
 }

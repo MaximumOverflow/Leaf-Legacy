@@ -32,6 +32,7 @@ namespace Leaf.Compilation.Types
 		public TypeFlags Flags { get; protected init; }
 		public abstract AttributeTarget AttributeTargetType { get; }
 		public IReadOnlyDictionary<AttributeType, Value> Attributes { get; protected init; }
+		
 
 		private Dictionary<string, OverloadGroup> _methods;
 		public IReadOnlyDictionary<string, OverloadGroup> Methods => _methods;
