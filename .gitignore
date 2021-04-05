@@ -1,0 +1,9 @@
+/Parsing/bin
+/Compiler/bin
+/ExecutionEngine/bin
+
+/Parsing/obj
+/Compiler/obj
+/Extensions/obj
+/ExecutionEngine/obj
+

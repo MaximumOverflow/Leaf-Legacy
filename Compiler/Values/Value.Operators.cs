@@ -19,13 +19,13 @@ namespace Leaf.Compilation.Values
 	{
 		public static string AsString(this Operator op) => op switch
 		{
+			Operator.Eq  => "==",
+			Operator.Neq => "!=",
 			Operator.Add => "+",
 			Operator.Sub => "-",
 			Operator.Mul => "*",
 			Operator.Div => "/",
 			Operator.Mod => "%",
-			Operator.Eq => "==",
-			Operator.Neq => "!=",
 			_ => throw new ArgumentOutOfRangeException(nameof(op), op, null)
 		};
 	}

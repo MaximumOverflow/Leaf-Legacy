@@ -1,12 +1,20 @@
 import C.stdio;
 
-def main: () -> i32 {
-	var i: i32 = 0;
-	while i != 100 {
+def test: struct {
+	value: i32;
+}
+
+def operator +: (this: ref test, other: test) -> test {
+	return test{value = value + other.value};
+}
+
+def fizzBuzz: (count: i32) -> i32 {
+	var i= 0 as i32;
+	while i != count {
 		i = i + 1;
 		if i % 15 == 0 => puts(&"FizzBuzz"); else
-		if i %  3 == 0 => puts(&"Fizz"); else
-		if i %  5 == 0 => puts(&"Buzz"); else
+		if i %  3 == 0 => puts(&"Fizz"); 	 else
+		if i %  5 == 0 => puts(&"Buzz"); 	 else
 		=> printf(&"%i\n", i);
 	}
 	

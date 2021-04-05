@@ -6,6 +6,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExecutionEngine", "Executio
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Extensions", "Extensions\Extensions.csproj", "{4554022F-494B-4916-8929-0A150DC1C156}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Parsing", "Parsing\Parsing.csproj", "{EE67C8BE-15D5-4C4D-A9A0-37E08BBF1047}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -24,5 +26,9 @@ Global
 		{4554022F-494B-4916-8929-0A150DC1C156}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4554022F-494B-4916-8929-0A150DC1C156}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4554022F-494B-4916-8929-0A150DC1C156}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EE67C8BE-15D5-4C4D-A9A0-37E08BBF1047}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EE67C8BE-15D5-4C4D-A9A0-37E08BBF1047}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EE67C8BE-15D5-4C4D-A9A0-37E08BBF1047}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EE67C8BE-15D5-4C4D-A9A0-37E08BBF1047}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
